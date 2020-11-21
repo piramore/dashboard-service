@@ -2,15 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const parser = require('body-parser');
 
+const connection = require('./configs/Mongo');
 const userRoutes = require('./routes/UserRoutes');
-const database = require('./configs/Mysql');
 
 const app = express();
-
 app.use(cors());
 app.use(parser.json());
 
-database.initDb();
+connection();
 
 app.get('/', (req, res) => {
     res.send({ message: "Hello, world!" });
