@@ -6,6 +6,7 @@ const MYSQL_HOST = "localhost";
 const MYSQL_USER = "root";
 const MYSQL_PASS = "jaringan";
 const MYSQL_DB = "login_api";
+const MYSQL_TABLE = "user";
 
 var _db;
 
@@ -28,6 +29,22 @@ function initDb() {
         password: MYSQL_PASS,
         database: MYSQL_DB
     });
+    
+    _db.query(`CREATE DATABASE IF NOT EXISTS ${MYSQL_DB}`).then(res => {
+        _db.query(`
+            CREATE TABLE IF NOT EXISTS user (
+                id int AUTO_INCREMENT PRIMARY KEY,
+                username varchar(255),
+                password varchar(255)
+            )
+            SELECT 'admin' AS \`username\`, 'seblak' AS \`password\`
+        `).then(ress => {
+            if (ress.warningCount == 0) {
+                console.log(`Table ${MYSQL_TABLE} does not exists, creating tables`);
+                console.log('Creating user with username "admin" and password "seblak"')
+            }
+        })
+    })
 }
 
 module.exports = {

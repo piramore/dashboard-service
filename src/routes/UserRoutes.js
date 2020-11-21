@@ -22,7 +22,7 @@ router.post('/login', async (req, res) => {
             return res.send({ success: true, data: users[0], message: "Login success!" });
         }
         else {
-            return res.send({ success: false, message: "Wrong password!" });
+            return res.status(403).send({ success: false, message: "Wrong password!" });
         }
     }
 
@@ -50,13 +50,14 @@ router.post('/updateUsername', async (req, res) => {
 
         // verify if password is correct
         if (password != users[0].password) {
-            return res.send({ success: false, message: "Wrong password" });
+            return res.status(403).json({ success: false, message: "Wrong password" });
         }
 
         try {
             // updating username
             const update_query = await conn.query(`UPDATE user SET username="${new_username}" WHERE username="${username}"`);
-            return res.json({ success: true, message: "Username updated!" });
+            const new_user = { id: users[0].id, username: new_username }
+            return res.json({ success: true, data: new_user, message: "Username updated!" });
         }
         catch(err) {
             return res.status(500).json({ success: false, message: "Failed update username", error: err });
