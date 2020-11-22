@@ -17,4 +17,4 @@ app.get('/', (req, res) => {
 
 app.use('/user', userRoutes);
 
-app.listen(3000, () => console.log("Listening to port 3000"));
+app.listen(3001, () => console.log("Listening to port 3000"));

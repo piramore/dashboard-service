@@ -1,7 +1,14 @@
 // const database = require('../configs/Mysql');
-const { UserModel } = require('../schemas/Schemas');
 const express = require('express');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+const { UserModel } = require('../schemas/Schemas');
+const { MAIL_CONFIG } = require('../configs/Mail');
+const { WEB_HOST } = require('../configs/Host');
+
 const router = express.Router();
+const transporter = nodemailer.createTransport(MAIL_CONFIG);
 
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
@@ -111,7 +118,7 @@ router.post("/update_username", async (req, res) => {
     }
 });
 
-router.post('/update_password', async (req, res) => {
+router.post('/password_token_request', async (req, res) => {
     const { username } = req.body;
 
     if (!username) {
@@ -122,15 +129,168 @@ router.post('/update_password', async (req, res) => {
         return;
     }
 
-    const user = await UserModel.findOne({ username });
-    if (!user) {
-        res.status(404).json({
+    try {
+        const user = await UserModel.findOne({ username });
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                message: "User not found!"
+            });
+            return;
+        }
+    
+        const resetPasswordToken = crypto.randomBytes(48).toString('hex');
+        const resetPasswordExpires = Date.now() + 3600000;  // 1 hours
+    
+        const updateUserToken = await UserModel.findOneAndUpdate(
+            { username },
+            { resetPasswordToken, resetPasswordExpires }
+        );
+
+        const mailOptions = {
+            from: "Momon Kuli",
+            to: user.email,
+            subject: "Password reset",
+            text: `Click link below to change your password within 1 hour.\nhttp://${WEB_HOST}/reset_password/${resetPasswordToken}`
+        }
+
+        transporter.sendMail(mailOptions, (err, info) => {
+            if (err) {
+                res.status(500).json({
+                    success: false,
+                    message: "Failed sending email",
+                    error: err
+                });
+                return;
+            }
+            if (info) {
+                res.json({
+                    success: true,
+                    message: "Reset password token has been sended to user's email.",
+                    data: info
+                });
+                return;
+            }
+        })
+    }
+
+    catch(err) {
+        res.status(500).json({
             success: false,
-            message: "User not found!"
+            message: "Internal server error.",
+            error: err
         });
         return;
     }
 });
+
+router.post('/update_password', async (req, res) => {
+    const { password, token } = req.body;
+    if (!password || !token) {
+        res.status(400).json({
+            success: false,
+            message: "Please provide username, password and token!"
+        });
+        return;
+    }
+
+    try {
+        const user = await UserModel.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpires: { $gt: Date.now() }
+        }).lean();
+
+        if (!user) {
+            res.status(403).json({
+                success: false,
+                message: "Invalid or expired token",
+            });
+            return;
+        }
+
+        const updateRequest = await UserModel.findOneAndUpdate(
+            { resetPasswordToken: token },
+            { password, resetPasswordToken: undefined, resetPasswordExpires: undefined }
+        );
+
+        res.json({
+            success: true,
+            message: "Update password success!",
+            data: updateRequest
+        });
+        return;
+    }
+
+    catch(err) {
+        res.status(500).json({
+            success: false,
+            message: "Internal server error.",
+            error: err
+        });
+        return;
+    }
+});
+
+router.post('/check_token', async (req, res) => {
+    const { token } = req.body;
+
+    if (!token) {
+        res.status(400).json({
+            success: false,
+            message: "Please provide token!"
+        });
+        return;
+    }
+
+    try {
+        const userToken = await UserModel.findOne({ resetPasswordToken: token, resetPasswordExpires: { $gt: Date.now() } });
+        if (!userToken) {
+            res.status(404).json({
+                success: false,
+                message: "Token invalid or expired"
+            });
+            return;
+        }
+
+        else {
+            res.json({
+                success: true,
+                message: "Token is valid"
+            });
+        }
+    }
+
+    catch(err) {
+        res.status(500).json({
+            success: false,
+            message: "Internal server error.",
+            error: err
+        });
+        return;
+    }
+})
+
+router.get('/test_mail', (req, res) => {
+    const mailOptions = {
+        from: 'Momon Kuli',
+        to: 'udinshalah12@gmail.com',
+        subject: 'Nodemailers Test',
+        text: 'Hai Kampang! \n Testing from Nodemailers!'
+    }
+
+    transporter.sendMail(mailOptions, (err, info) => {
+        if (err) {
+            res.statusCode(500);
+            return;
+        }
+        if (info) {
+            res.json({
+                success: true,
+                data: info.response
+            })
+        }
+    })
+})
 
 // router.post('/login', async (req, res) => {
 //     const { username, password } = req.body;
