@@ -1,15 +1,31 @@
 const mongoose = require('mongoose');
 
-const connectionString = "mongodb://localhost:27017/dashboard-kuli";
+const MONGO_HOST = "localhost:27017";
+const MONGO_DB = "dashboard-kuli";
+const MONGO_USER = "";
+const MONGO_PASSWORD = "";
+
+const connectionString = `mongodb://${MONGO_HOST}/${MONGO_DB}`;
 
 const connect = () => {
-    mongoose.connect(connectionString, {
+    let mongoConfig = {
         useNewUrlParser: true,
         useUnifiedTopology: true,
         useCreateIndex: true,
-        useFindAndModify: false
-    }, err => {});
+        useFindAndModify: false,
+    }
 
+    if (MONGO_USER && MONGO_PASSWORD) {
+        Object.assign(mongoConfig, {
+            authSource: "admin",
+            auth: {
+                user: MONGO_USER,
+                password: MONGO_PASSWORD
+            }
+        })
+    }
+
+    mongoose.connect(connectionString, mongoConfig, err => {});
     const connection = mongoose.connection;
 
     connection.on('connected', () => console.log("Database connected!"));
