@@ -118,23 +118,72 @@ router.post("/update_username", async (req, res) => {
     }
 });
 
-router.post('/password_token_request', async (req, res) => {
-    const { username } = req.body;
-
-    if (!username) {
+router.post("/update_password", async (req, res) => {
+    const { username, password, new_password } = req.body;
+    
+    if (!username || !password || !new_password) {
         res.status(400).json({
-            success: false,
-            message: "Please provide username!"
+            success:false,
+            message: "Please provice username, password, and new_password!"
         });
         return;
     }
 
     try {
         const user = await UserModel.findOne({ username });
-        if (!user) {
+        
+        if(!user) {
             res.status(404).json({
                 success: false,
                 message: "User not found!"
+            });
+            return;
+        }
+
+        if (user.password != password) {
+            res.status(403).json({
+                success:false,
+                message: "Wrong password!"
+            });
+            return;
+        }
+
+        const updateRequest = await UserModel.findOneAndUpdate({ username }, { password: new_password });
+        
+        res.json({
+            success: true,
+            message: "Success updating password!"
+        });
+        return;
+    }
+
+    catch(err) {
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: err
+        });
+        return;
+    }
+})
+
+router.post('/password_token_request', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        res.status(400).json({
+            success: false,
+            message: "Please provide email!"
+        });
+        return;
+    }
+
+    try {
+        const user = await UserModel.findOne({ email });
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                message: "Email not found!"
             });
             return;
         }
@@ -143,7 +192,7 @@ router.post('/password_token_request', async (req, res) => {
         const resetPasswordExpires = Date.now() + 3600000;  // 1 hours
     
         const updateUserToken = await UserModel.findOneAndUpdate(
-            { username },
+            { email },
             { resetPasswordToken, resetPasswordExpires }
         );
 
@@ -184,7 +233,7 @@ router.post('/password_token_request', async (req, res) => {
     }
 });
 
-router.post('/update_password', async (req, res) => {
+router.post('/reset_password', async (req, res) => {
     const { password, token } = req.body;
     if (!password || !token) {
         res.status(400).json({
